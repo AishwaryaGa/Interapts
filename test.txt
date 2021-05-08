@@ -1,0 +1,84 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu May  6 22:11:47 2021
+
+@author: AISHOO
+"""
+
+import pandas as pd
+import numpy as np
+from datetime import datetime
+Employee = pd.read_excel (r'C:\Users\AISHOO\Desktop\Hackathon\Team Info.xlsx')
+Project = pd.read_excel (r'C:\Users\AISHOO\Desktop\Hackathon\Project.xlsx')
+Employee['Skills'] = Employee[['Skill 1', 'Skill 2', 'Skill 3', 'Skill 4', 'Skill 5']].apply(lambda x: ','.join(x[x.notnull()]), axis = 1)
+tokenized_Skills = [e.split(',') for e in Employee['Skills']]
+tokenized_Req = [e.split(',') for e in Project['Skills']]
+m = len(tokenized_Req)
+n = len(tokenized_Skills)
+i=0
+j=0
+for proj in tokenized_Req:
+    for emp in tokenized_Skills:
+        
+        intersection = len(list(set(proj).intersection(emp)))
+        union = (len(proj) + len(emp)) - intersection
+        print(float(intersection)/union)
+"""store result in m*n matrix based on length of employee and project list
+store the availability and requirement in seperate lists and if the requirement is not met with availability then store 0 instead of the jaccard value
+"""
+allocation = [[-1 for x in range(n)] for y in range(m)]
+for proj in tokenized_Req:
+   for emp in tokenized_Skills:
+       if (Project['Location'][i] == Employee['Prod Build Location'][j]) and (Project['Role Level'][i] == Employee['Role Level'][j]):
+           intersection = len(list(set(proj).intersection(emp)))
+           union = (len(proj) + len(emp)) - intersection
+           allocation[i][j] = 1 - (float(intersection)/union)
+       j = j+1
+   i = i+1
+   j=0
+i=0
+j=0
+for proj in tokenized_Req:
+   for emp in tokenized_Skills:
+       if (allocation[i][j] != -1):
+           allocation[i][j] = allocation[i][j] + (((Employee['resource product end date'][j]).date())-((Project['start_date'][i]).date())).days
+       j=j+1
+   i=i+1
+   j=0
+i=0
+j=0
+for proj in tokenized_Req:
+   for emp in tokenized_Skills:
+       if (allocation[i][j] == -1):
+           allocation[i][j] = np.nan
+       j=j+1
+   i=i+1
+   j=0
+   
+[sorted(list(set(i)))[1] for i in allocation]
+np.where(allocation == np.nanmin(allocation))
+Mapping = [['' for x in range(2)] for y in range(m)]
+i=0
+while i<m:
+    Mapping[i][0]=Project['Project'][i]
+    i = i+1
+i=0
+for proj in tokenized_Req:
+    res= np.where(allocation[i] == np.nanmin(allocation[i]))
+    x=min(res[0])
+    Mapping[i][1] = Employee['Name'][x]
+    j=i+1
+    while j < m:
+        allocation[j][x] = np.nan
+        j = j+1
+    i = i+1
+print(Mapping)
+i=0
+Project['Resource']=Project['Project']
+while i<m:
+    Project['Resource'][i] = Mapping[i][1]
+    i = i+1
+print(Project)
+now = datetime.now()
+file_name = r'C:\Users\AISHOO\Desktop\Hackathon\Project_Output_' + now.strftime("%m-%d-%Y_%H-%M-%S") + r'.xlsx'
+Project.to_excel(file_name,index=False,sheet_name='Sheet1')
